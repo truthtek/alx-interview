@@ -1,43 +1,54 @@
 #!/usr/bin/python3
+"""
+Read stdin line by line and computes metrics
+Input format: <IP Address> - [<date>] "GET /projects/260 HTTP/1.1"
+<status code> <file size>
+After every 10 lines or keyboard interrupt (CTRL + C):
+Print statistics from the beginning
+"""
 import sys
 import re
-from collections import defaultdict
+
 
 def print_stats(total_size, status_codes):
-    print(f"File size: {total_size}")
+    """Print accumulated statistics"""
+    print("File size: {}".format(total_size))
     for code in sorted(status_codes.keys()):
         if status_codes[code] > 0:
-            print(f"{code}: {status_codes[code]}")
+            print("{}: {}".format(code, status_codes[code]))
+
 
 def parse_line(line):
-    pattern = r'(\d+\.\d+\.\d+\.\d+) - \[(.*?)\] "GET /projects/260 HTTP/1.1" (\d+) (\d+)'
+    """Parse a line and return the status code and file size"""
+    pattern = r'^(\S+) - \[(.+)\] "GET /projects/260 HTTP/1\.1" (\d+) (\d+)$'
     match = re.match(pattern, line)
     if match:
-        ip, date, status, file_size = match.groups()
-        return int(status), int(file_size)
+        return match.group(3), int(match.group(4))
     return None, None
 
-def main():
-    total_size = 0
-    line_count = 0
-    status_codes = defaultdict(int)
-    valid_codes = {200, 301, 400, 401, 403, 404, 405, 500}
 
-    try:
-        for line in sys.stdin:
-            status, file_size = parse_line(line.strip())
-            if status is not None and file_size is not None:
-                total_size += file_size
-                if status in valid_codes:
-                    status_codes[status] += 1
-                line_count += 1
+total_size = 0
+line_count = 0
+status_codes = {
+    "200": 0, "301": 0, "400": 0, "401": 0,
+    "403": 0, "404": 0, "405": 0, "500": 0
+}
 
-                if line_count % 10 == 0:
-                    print_stats(total_size, status_codes)
+try:
+    for line in sys.stdin:
+        line = line.strip()
+        status, file_size = parse_line(line)
+        
+        if status and file_size is not None:
+            total_size += file_size
+            if status in status_codes:
+                status_codes[status] += 1
+            line_count += 1
 
-    except KeyboardInterrupt:
-        print_stats(total_size, status_codes)
-        raise
+            if line_count % 10 == 0:
+                print_stats(total_size, status_codes)
 
-if __name__ == "__main__":
-    main()
+except KeyboardInterrupt:
+    pass
+finally:
+    print_stats(total_size, status_codes)

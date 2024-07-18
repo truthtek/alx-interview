@@ -1,13 +1,8 @@
 #!/usr/bin/python3
 """
 Read stdin line by line and computes metrics
-Input format: <IP Address> - [<date>] "GET /projects/260 HTTP/1.1"
-<status code> <file size>
-After every 10 lines or keyboard interrupt (CTRL + C):
-Print statistics from the beginning
 """
 import sys
-import re
 
 
 def print_stats(total_size, status_codes):
@@ -16,15 +11,6 @@ def print_stats(total_size, status_codes):
     for code in sorted(status_codes.keys()):
         if status_codes[code] > 0:
             print("{}: {}".format(code, status_codes[code]))
-
-
-def parse_line(line):
-    """Parse a line and return the status code and file size"""
-    pattern = r'^(\S+) - \[(.+)\] "GET /projects/260 HTTP/1\.1" (\d+) (\d+)$'
-    match = re.match(pattern, line)
-    if match:
-        return match.group(3), int(match.group(4))
-    return None, None
 
 
 total_size = 0
@@ -36,17 +22,24 @@ status_codes = {
 
 try:
     for line in sys.stdin:
-        line = line.strip()
-        status, file_size = parse_line(line)
+        line_count += 1
+        data = line.split()
         
-        if status and file_size is not None:
-            total_size += file_size
+        try:
+            size = int(data[-1])
+            total_size += size
+        except (IndexError, ValueError):
+            pass
+
+        try:
+            status = data[-2]
             if status in status_codes:
                 status_codes[status] += 1
-            line_count += 1
+        except IndexError:
+            pass
 
-            if line_count % 10 == 0:
-                print_stats(total_size, status_codes)
+        if line_count % 10 == 0:
+            print_stats(total_size, status_codes)
 
 except KeyboardInterrupt:
     pass
